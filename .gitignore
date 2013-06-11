@@ -1,0 +1,11 @@
+.DS_Store
+.classpath
+.project
+.settings
+bin
+doc
+notes_to_tone.wav
+temp_recording.wav
+jsyn-beta-16.5.14.jar
+wire_v13_111007
+src/jsyn_examples
