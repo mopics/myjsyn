@@ -2,6 +2,7 @@ package myjsyn.instruments;
 
 import com.jsyn.ports.UnitOutputPort;
 import com.jsyn.unitgen.Circuit;
+import com.jsyn.unitgen.SawtoothOscillator;
 import com.jsyn.unitgen.UnitSource;
 import com.jsyn.unitgen.VariableRateMonoReader;
 import com.jsyn.unitgen.Multiply;
@@ -13,7 +14,7 @@ import com.softsynth.shared.time.TimeStamp;
 public class MonoWasp extends Circuit implements UnitSource {
 	
 	// Declare units and ports.
-    private SawtoothOscillatorDPW saw;
+    private SawtoothOscillator saw;
     private VariableRateMonoReader envPlay;
     private Multiply mult;
     private FilterLowPass lowPass;
@@ -22,7 +23,7 @@ public class MonoWasp extends Circuit implements UnitSource {
     
     public MonoWasp() {
     	// Create units
-        add( saw  = new SawtoothOscillatorDPW() );
+        add( saw  = new SawtoothOscillator() );
         add( envPlay = new VariableRateMonoReader() );
         add( mult = new Multiply() );
         add( lowPass = new FilterLowPass() );
@@ -34,7 +35,7 @@ public class MonoWasp extends Circuit implements UnitSource {
         mult.inputA.set( 550.0 );							// mult.inputA 	:  can be set by measure data : lpFreqs value
         envPlay.output.connect( lowPass.amplitude ); 	// envPlay-out 	-> lowPass-amp
         mult.output.connect( lowPass.frequency);		// mult-out 	-> lowPass-cutoff-freq
-        lowPass.Q.set( 4.0 );				// lowPass-Q 	:  can be set by measuredata  : lpQs values 0 - 10
+        lowPass.Q.set( 2.0 );				// lowPass-Q 	:  can be set by measuredata  : lpQs values 0 - 10
         
         // set circuits output
         output = lowPass.output;

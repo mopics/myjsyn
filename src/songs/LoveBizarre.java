@@ -1,5 +1,6 @@
 package songs;
 
+import java.io.File;
 import java.io.IOException;
 
 import myjsyn.Chord;
@@ -7,9 +8,11 @@ import myjsyn.Note;
 import myjsyn.instruments.DrumMeasureData;
 import myjsyn.instruments.MonoWasp;
 import myjsyn.instruments.MonoWaspMeasureData;
-import myjsyn.instruments.Organ;
-import myjsyn.instruments.OrganMeasureData;
-import myjsyn.instruments.Rik;
+import myjsyn.instruments.OscChordPlayer;
+import myjsyn.instruments.OscChordMeasureData;
+import myjsyn.instruments.Drum;
+import myjsyn.instruments.SlideOsc;
+import myjsyn.instruments.SlideOscMeasureData;
 
 import com.jsyn.JSyn;
 import com.jsyn.Synthesizer;
@@ -18,6 +21,7 @@ import com.jsyn.unitgen.SawtoothOscillator;
 import com.jsyn.unitgen.SineOscillator;
 import com.jsyn.unitgen.SquareOscillator;
 import com.jsyn.unitgen.UnitOscillator;
+import com.jsyn.util.WaveRecorder;
 import com.softsynth.shared.time.TimeStamp;
 
 public class LoveBizarre {
@@ -26,12 +30,13 @@ public class LoveBizarre {
 	
 	// instruments/circuits
     private LineOut lineOut;
-    private Organ organ;
-    private Rik rik;
+    private OscChordPlayer organ;
+    private Drum rik;
     private MonoWasp wasp;
+    private SlideOsc winer;
     
     // time stuff
-    private static final double bpm = 200.0;  // beat per minute
+    private static final double bpm = 170.0;  // beat per minute
     private static final double spb = 60.0/bpm; // seconds per beat
     private static final double spm = spb*5;  // seconds per measure
     
@@ -48,16 +53,30 @@ public class LoveBizarre {
     
     private void go() throws IOException
     {
+    	
     	// Create main synth
         synth = JSyn.createSynthesizer();
         synth.add( lineOut = new LineOut() );
         
+        // setup recorder
+        File wav = new File("LoveBizarre_synth.wav" );
+    	WaveRecorder rec = new WaveRecorder( synth, wav );
+        
         // Setup instruments:
+    	// Winer
+    	synth.add( winer = new SlideOsc( new SquareOscillator() ) );
+    	//winer.output.connect( 0, lineOut.input, 0 );
+    	//winer.output.connect( 0, lineOut.input, 1 );
+    	winer.output.connect( 0, rec.getInput(), 0 );
+    	winer.output.connect( 0, rec.getInput(), 1 );
         // Wasp
         synth.add( wasp = new MonoWasp( ) );
+        wasp.output.connect( 0, lineOut.input, 0 );
         wasp.output.connect( 0, lineOut.input, 1 );
+        wasp.output.connect( 0, rec.getInput(), 0 );
+        wasp.output.connect( 0, rec.getInput(), 1 );
         // Organ.
-        synth.add( organ  = new Organ( new UnitOscillator[]{
+        synth.add( organ  = new OscChordPlayer( new UnitOscillator[]{
         		new SawtoothOscillator(),
         		new SquareOscillator(),
         		new SawtoothOscillator(),
@@ -65,23 +84,29 @@ public class LoveBizarre {
         }) );
         organ.output.connect( 0, lineOut.input, 0 );
         organ.output.connect( 0, lineOut.input, 1 );
+        organ.output.connect( 0, rec.getInput(), 0 );
+        organ.output.connect( 0, rec.getInput(), 1 );
         // Rik
-        synth.add( rik = new Rik( new String[]{
-        	"samples/drum/rikBass01.aiff",
-        	"samples/drum/rikSnare02.aiff",
-        	"samples/drum/rikSnareDB01.aiff",
-        	"samples/drum/rikHat01.aiff"
+        synth.add( rik = new Drum( new String[]{
+        	"samples/LM1/LM1_Kick.wav",
+        	"samples/LM1/LM1_Snare.wav",
+        	"samples/LM1/LM1_Hat_Open.wav",
+        	"samples/LM1/LM1_Hat_Cl.wav"
         }) );
         rik.output.connect( 0, lineOut.input, 0 );
         rik.output.connect( 0, lineOut.input, 1 );
+        rik.output.connect( 0, rec.getInput(), 0 );
+        rik.output.connect( 0, rec.getInput(), 1 );
         
         //  START !
+        if( RECORD )
+        	rec.start();
         synth.start();
         lineOut.start();
        
         // Get synthesizer time in seconds.
 		double startTime = synth.getCurrentTime();
-		double endTime = createSong( new TimeStamp( startTime+0.5 ) ) + 2.0;
+		double endTime = createSong( new TimeStamp( startTime+(spb) ) ) + 2.0;
 		
         try
         {
@@ -95,15 +120,30 @@ public class LoveBizarre {
          System.out.println( "Stop playing. -------------------" );
 	     // Stop everything.
 	     synth.stop();
+	     if( RECORD ) {
+		     rec.stop();
+		     rec.close();
+	     }
     }
     
     private double createSong( TimeStamp ts ) {
     	double t = 0.0;
+    	double[] notes = Note.getNoteAscPattern( "D", new int[]{ 0,0,0,0 }, 2, Note.MIXOLYDIAN, 10 );
+    	int foo = 0;
+    	foo = 1;
+    	// intro:
+    	// Fmaj7
+    	/*wasp.scheduleMeasure( WASP_F_01		, ts.makeRelative(t), 4 );
+		//rik.scheduleMeasure( DRUM_DEFAULT	, ts.makeRelative(t), 4 );
+		t += spm * 4;
+    	// Amin7
+		wasp.scheduleMeasure( WASP_A_02		, ts.makeRelative(t), 4 );
+    	rik.scheduleMeasure( DRUM_DEFAULT	, ts.makeRelative(t), 4 );
+    	t += spm * 4;*/
     	// schedule the parts together:
-    	for( int l = 0; l < 3; l ++ ) {
-    		
+    	for( int l = 1; l < 16; l ++ ) {
     		// Fmaj7
-    		wasp.scheduleMeasure( WASP_F_01		, ts.makeRelative(t), 4 );
+    		/*wasp.scheduleMeasure( WASP_F_01		, ts.makeRelative(t), 4 );
     		if( l==1  )
     			organ.scheduleMeasure( ORGAN_G,  ts.makeRelative(t), 4 );
     		rik.scheduleMeasure( DRUM_DEFAULT	, ts.makeRelative(t), 4 );
@@ -117,10 +157,7 @@ public class LoveBizarre {
 	    	// Fmaj7
 	    	wasp.scheduleMeasure( WASP_F_01, 	  ts.makeRelative(t), 4 );
 	    	if( l==1 ) {
-	    		organ.scheduleMeasure( ORGAN_G_01,  ts.makeRelative(t), 1 );
-	    		organ.scheduleMeasure( ORGAN_G_02,  ts.makeRelative(t+spm), 1 );
-	    		organ.scheduleMeasure( ORGAN_G_03,  ts.makeRelative(t+spm*2), 1 );
-	    		organ.scheduleMeasure( ORGAN_G_04,  ts.makeRelative(t+spm*3), 1 );
+	    		organ.scheduleMeasure( ORGAN_G,  ts.makeRelative(t), 4 );
 	    	}
 	    	rik.scheduleMeasure( DRUM_DBHATS, 	  ts.makeRelative(t), 4 );
 	    	t += spm * 4;
@@ -130,37 +167,20 @@ public class LoveBizarre {
 	    		organ.scheduleMeasure( ORGAN_A,  ts.makeRelative(t), 4 );
 	    	rik.scheduleMeasure( DRUM_DEFAULT	, ts.makeRelative(t), 4 );
 	    	t += spm * 4;
+	    	*/
+	    	// =========== Couplet ============== //
 	    	// D7
-	    	wasp.scheduleMeasure( WASP_D_M4		, ts.makeRelative(t), 1 );
-	    	if( l==1 )
+	    	winer.scheduleMeasure( WINE_D_01,     ts.makeRelative(t), 4 );
+			wasp.scheduleMeasure( WASP_D_01		, ts.makeRelative(t), 4 );
+	    	if( l%2==1 )
 	    		organ.scheduleMeasure( ORGAN_D	, ts.makeRelative(t), 4 );
-	    	rik.scheduleMeasure( DRUM_DEFAULT	, ts.makeRelative(t), 4 );
+	    	rik.scheduleMeasure( DRUM_DBHATS	, ts.makeRelative(t), 4 );
 	    	t += spm * 4;
 	    	// Amin7
 	    	wasp.scheduleMeasure( WASP_A_01, 	  ts.makeRelative(t), 4 );
-	    	if( l==1 )
+	    	if( l%2==1 )
 	    		organ.scheduleMeasure( ORGAN_A,  ts.makeRelative(t), 4 );
 	    	rik.scheduleMeasure( DRUM_DBHATS, 	  ts.makeRelative(t), 4 );
-	    	t += spm * 4;
-	    	// D7
-	    	wasp.scheduleMeasure( WASP_D_M4		, ts.makeRelative(t), 1 );
-	    	if( l==1 ) {
-		    	organ.scheduleMeasure( ORGAN_D_01,  ts.makeRelative(t), 1 );
-		    	organ.scheduleMeasure( ORGAN_D_02,  ts.makeRelative(t+spm), 1 );
-		    	organ.scheduleMeasure( ORGAN_D_01,  ts.makeRelative(t+spm*2), 1 );
-		    	organ.scheduleMeasure( ORGAN_D_03,  ts.makeRelative(t+spm*3), 1 );
-	    	}
-	    	rik.scheduleMeasure( DRUM_DEFAULT	, ts.makeRelative(t), 4 );
-	    	t += spm * 4;
-	    	// Amin7
-	    	wasp.scheduleMeasure( WASP_A_01		, ts.makeRelative(t), 4 );
-	    	if( l==1 ) {
-		    	organ.scheduleMeasure( ORGAN_A_01,  ts.makeRelative(t), 1 );
-		    	organ.scheduleMeasure( ORGAN_A_02,  ts.makeRelative(t+spm), 1 );
-		    	organ.scheduleMeasure( ORGAN_A_03,  ts.makeRelative(t+spm*2), 1 );
-		    	organ.scheduleMeasure( ORGAN_A_04,  ts.makeRelative(t+spm*3), 1 );
-	    	}
-	    	rik.scheduleMeasure( DRUM_DBHATS	, ts.makeRelative(t), 4 );
 	    	t += spm * 4;
     	}
     	return t;
@@ -177,17 +197,17 @@ public class LoveBizarre {
     // Drum patterns : // use the same order as Rik constructor!!!
 	private static final double[][] vijfkwart = new double[][]{
 		//  1.....ú.....2.....ú.....3.....ú.....4.....ú.....5.....ú.....
-		  { 3.00, 0.00, 0.00, 0.00, 0.00, 0.00, 3.00, 0.00, 0.00, 0.00 }, // base
-		  { 0.00, 0.00, 0.00, 2.50, 0.00, 0.00, 0.00, 0.00, 2.00, 0.00 }, // snare
-		  { 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00 }, // snareDB
-		  { 2.00, 0.00, 2.00, 0.00, 2.00, 0.00, 2.00, 0.00, 2.00, 0.00 }  // hhat
+		  { 1.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1.50, 0.00, 0.00, 0.00 }, // base
+		  { 0.00, 0.00, 0.00, 1.00, 0.00, 0.00, 0.00, 0.00, 1.00, 0.00 }, // snare
+		  { 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00 }, // hat open
+		  { 0.50, 0.55, 0.10, 0.05, 0.50, 0.05, 0.50, 0.05, 0.50, 0.05 }  // hat closed
 	};
 	private static final double[][] vijfkwartDBHats = new double[][]{
 		//  1.....ú.....2.....ú.....3.....ú.....4.....ú.....5.....ú.....
-		  { 3.00, 0.00, 0.00, 0.00, 0.00, 0.00, 3.00, 0.00, 0.00, 0.00 }, // base
-		  { 0.00, 0.00, 0.00, 2.50, 0.00, 0.00, 0.00, 0.00, 2.00, 0.00 }, // snare
-		  { 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00 }, // snareDB
-		  { 2.00, 0.60, 2.10, 0.70, 2.20, 0.80, 2.30, 0.90, 2.40, 1.00 }  // hhat
+		  { 1.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1.50, 0.00, 0.00, 0.00 }, // base
+		  { 0.00, 0.00, 0.00, 1.00, 0.00, 0.00, 0.00, 0.00, 1.00, 0.00 }, // snare
+		  { 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00 }, // hat open
+		  { 0.10, 0.50, 0.10, 0.50, 0.10, 0.50, 0.10, 0.50, 0.10, 0.50 }  // hat closed
 	};
 	private static final DrumMeasureData DRUM_DBHATS  = new DrumMeasureData( spb/2, vijfkwartDBHats );
 	private static final DrumMeasureData DRUM_DEFAULT = new DrumMeasureData( spb/2, vijfkwart );
@@ -196,40 +216,26 @@ public class LoveBizarre {
 	// organ measures:
 	private static final double[] ORGAN_AMPS_01 = new double[]{
 		//	1.....ú.....2.....ú.....3.....ú.....4.....ú.....5.....ú.....
-			0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10
-	};
-	private static final double[] ORGAN_AMPS_01_4 = new double[]{ // 16th notes
-		//	1.....ú.....2.....ú.....3.....ú.....4.....ú.....5.....ú.....
-			0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10
-	};
-	private static final double[] ORGAN_AMPS_01_8 = new double[]{ // 32th notes ??
-		//	1.....ú.....2.....ú.....3.....ú.....4.....ú.....5.....ú.....
-			0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10,
-			0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10
+			1.10, 1.10, 0.40, 0.20, 0.10, 0.05, 1.10, 1.10, 0.40, 0.20
 	};
 	private static final double[] ORGAN_AMPS_02 = new double[]{
 		//	1.....ú.....2.....ú.....3.....ú.....4.....ú.....5.....ú.....
-			0.10, 0.00, 0.00, 0.10, 0.00, 0.00, 0.10, 0.00, 0.00, 0.00
+			0.10, 0.01, 0.01, 0.10, 0.01, 0.01, 0.10, 0.01, 0.00, 0.01
+	};
+	private static final double[][] ORGAN_AMP_ENVS_01 = new double[][]{
+		{
+			0.0, 0.0,
+			spb/4*.1, 0.06,
+			spb/4*.9, 0.0,
+		}
 	};
 	private static final int[] ORGAN_ARP_01 = new int[]{ 0,3,2,1 };
 	private static final int[] ORGAN_ARP_02 = new int[]{ 3,2,1,0 };
 	private static final int[] ORGAN_ARP_03 = new int[]{ 3,1,2,0 };
 	private static final int[] ORGAN_ARP_04 = new int[]{ 0,2,1,3 };
-	private static final OrganMeasureData ORGAN_G = 	new OrganMeasureData( spb/2, spb/2, Gmaj7, ORGAN_AMPS_01, ORGAN_ARP_01 );
-	private static final OrganMeasureData ORGAN_G_01 = 	new OrganMeasureData( spb/4, spb/4, Gmaj7, ORGAN_AMPS_01_4, ORGAN_ARP_02 );
-	private static final OrganMeasureData ORGAN_G_02 = 	new OrganMeasureData( spb/4, spb/4, Gmaj7, ORGAN_AMPS_01_4, ORGAN_ARP_02 );
-	private static final OrganMeasureData ORGAN_G_03 = 	new OrganMeasureData( spb/4, spb/4, Gmaj7, ORGAN_AMPS_01_4, ORGAN_ARP_03 );
-	private static final OrganMeasureData ORGAN_G_04 = 	new OrganMeasureData( spb/4, spb/4, Gmaj7, ORGAN_AMPS_01_4, ORGAN_ARP_04 );
-	private static final OrganMeasureData ORGAN_A = 	new OrganMeasureData( spb/2, spb/2, Amin7, ORGAN_AMPS_02, ORGAN_ARP_01 );
-	private static final OrganMeasureData ORGAN_A_01 = 	new OrganMeasureData( spb/8, spb/8, Amin7,    ORGAN_AMPS_01_8, ORGAN_ARP_01 );
-	private static final OrganMeasureData ORGAN_A_02 = 	new OrganMeasureData( spb/8, spb/8, Amin7,    ORGAN_AMPS_01_8, ORGAN_ARP_02 );
-	private static final OrganMeasureData ORGAN_A_03 = 	new OrganMeasureData( spb/8, spb/8, Amin7,    ORGAN_AMPS_01_8, ORGAN_ARP_03 );
-	private static final OrganMeasureData ORGAN_A_04 = 	new OrganMeasureData( spb/8, spb/8, Amin7_05, ORGAN_AMPS_01_8, ORGAN_ARP_04 );
-	private static final OrganMeasureData ORGAN_D = 	new OrganMeasureData( spb/2, spb/2, D7,    ORGAN_AMPS_02 );
-	private static final OrganMeasureData ORGAN_D_01 = 	new OrganMeasureData( spb/8, spb/8, D7,    ORGAN_AMPS_01_8, ORGAN_ARP_01 );
-	private static final OrganMeasureData ORGAN_D_02 = 	new OrganMeasureData( spb/8, spb/8, D7,    ORGAN_AMPS_01_8, ORGAN_ARP_02 );
-	private static final OrganMeasureData ORGAN_D_03 = 	new OrganMeasureData( spb/8, spb/8, D7,    ORGAN_AMPS_01_8, ORGAN_ARP_03 );
-	private static final OrganMeasureData ORGAN_D_04 = 	new OrganMeasureData( spb/8, spb/8, D7,    ORGAN_AMPS_01_8, ORGAN_ARP_04 );
+	private static final OscChordMeasureData ORGAN_G 	= 	new OscChordMeasureData( spb/2, Gmaj7, ORGAN_AMPS_01, ORGAN_ARP_01, ORGAN_AMP_ENVS_01, new int[]{0} );
+	private static final OscChordMeasureData ORGAN_A 	= 	new OscChordMeasureData( spb/2, Amin7, ORGAN_AMPS_01, ORGAN_ARP_01, ORGAN_AMP_ENVS_01, new int[]{0} );
+	private static final OscChordMeasureData ORGAN_D 	= 	new OscChordMeasureData( spb/2, D7,    ORGAN_AMPS_02, ORGAN_ARP_01, ORGAN_AMP_ENVS_01, new int[]{0} );
 	
 	// ==================================================================== WASP :
     // Wasp Measure components
@@ -244,27 +250,27 @@ public class LoveBizarre {
     {	0.50, 0.50, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00  };
     private static final double [] WASP_AMPS_1_15_4_45 = 
     //  1.....ú.....2.....ú.....3.....ú.....4.....ú.....5.....ú.....
-    {	0.50, 0.50, 0.00, 0.00, 0.00, 0.00, 0.60, 0.30, 0.00, 0.00  };
+    {	0.50, 0.50, 0.00, 0.00, 0.00, 0.00, 0.30, 0.20, 0.00, 0.00  };
     private static final double [] WASP_AMPS_1_15_2_25_4_45 =
     //  1.....ú.....2.....ú.....3.....ú.....4.....ú.....5.....ú.....
-    {	0.50, 0.50, 0.00, 0.50, 0.40, 0.00, 0.60, 0.30, 0.00, 0.00  };
+    {	0.50, 0.50, 0.00, 0.50, 0.40, 0.00, 0.40, 0.30, 0.00, 0.00  };
     // envelopes 
     private static final double[] WASP_ENV_4M = { // 4 measures long envelope
     	spb*4, 0.5,
-    	spb*4, 2.0,
-    	spb*4, 2.0,
-    	spb*4, 2.5,
-    	spb*4, 0.5,
+    	spb*4, 1.0,
+    	spb*4, 1.0,
+    	spb*4, 0.9,
+    	spb*4, 0.0,
     };
     private static final double[] WASP_ENV_SPB = {
-    	spb/5, 0.9,
-    	spb/5, 1.8,
-    	spb/5, 1.5,
-    	spb/5, 1.3,
+    	spb/5, 0.4,
+    	spb/5, 0.8,
+    	spb/5, 0.5,
+    	spb/5, 0.3,
     	spb/5, 0.0
     };
     private static final double[] WASP_ENV_SPB_H = {
-    	spb/10, 0.9,
+    	spb/10, 0.4,
     	spb/10, 0.8,
     	spb/10, 0.5,
     	spb/10, 0.3,
@@ -274,6 +280,13 @@ public class LoveBizarre {
     private static final MonoWaspMeasureData WASP_F_01 = new MonoWaspMeasureData( spb/2, 	WASP_AMPS_1_15_4_45, WASP_NOTES_F, 	new double[][]{ WASP_ENV_SPB_H } );
     private static final MonoWaspMeasureData WASP_A_01 = new MonoWaspMeasureData( spb/2, 	WASP_AMPS_1_15_4_45, WASP_NOTES_A, 	new double[][]{ WASP_ENV_SPB_H } );
     private static final MonoWaspMeasureData WASP_A_02 = new MonoWaspMeasureData( spb/2,	WASP_AMPS_1_15, WASP_NOTES_A, 		new double[][]{ WASP_ENV_SPB_H } );
+    private static final MonoWaspMeasureData WASP_D_01 = new MonoWaspMeasureData( spb/2, 	WASP_AMPS_1_15, WASP_NOTES_D,		new double[][]{ WASP_ENV_SPB_H } );
     private static final MonoWaspMeasureData WASP_D_M4 = new MonoWaspMeasureData( spb/2,	WASP_AMPS_1_15_4_45, WASP_NOTES_D, 	new double[][]{ WASP_ENV_SPB_H } );
     
+    // Winer measures :
+    private static final double SOA = .3;
+    private static final SlideOscMeasureData WINE_D_01 = new SlideOscMeasureData( spb/2, 
+    		new double[]{ SOA,SOA,SOA,SOA,SOA,SOA,SOA,SOA,SOA,SOA }, 
+    		Note.getNoteAscPattern( "D", new int[]{ 0,4,2,1 }, 3, Note.MIXOLYDIAN, 10 ) );
+    private static final boolean RECORD = false;
 }

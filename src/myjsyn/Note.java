@@ -43,4 +43,37 @@ public class Note {
 	public static void main( String [] args ){
 		System.out.println( convertNoteToFrequency( "F", 5 ) );
 	}
+	
+	
+	public static double[] getNoteAscPattern( String rootNote, int[] pattern, int octave, int[] mode, int numNotes ){
+		double[] notes = new double[ numNotes ];
+		int rootPitch = convertNoteToPitch( rootNote, octave );
+		
+		int pi = 0;
+		for( int ni=0; ni<numNotes; ni++ ) {
+			if( pi==pattern.length ){ // if at end of pattern ascend pattern by one
+				pi = 0;
+				for( int pii=0; pii<pattern.length; pii++ ){
+					pattern[pii] += 1;
+				}
+			}
+			int modeIdx = pattern[pi];
+			if( modeIdx >= mode.length ){// if modeIdx > then mode.length : find out how much bigger, reset and add octave ( 12 pitches ) to rootPitch
+				modeIdx = modeIdx - mode.length;
+				rootPitch += 12;
+			}
+			
+			notes[ni] = convertPitchToFrequency( rootPitch + mode[ modeIdx ] );
+			
+			pi++;
+		}
+		return notes;
+	}
+	public static final int[] MAJOR 	= new int[] { 2,4,5,7,9,11 }; // Cmaj7
+	public static final int[] DORIAN 	= new int[] { 2,3,5,7,9,10 }; // Dmin7
+	public static final int[] PHRYGIAN 	= new int[] { 1,3,5,7,8,10 }; // Emin7
+	public static final int[] LYDIAN 	= new int[] { 2,4,6,7,9,11 }; // Fmaj7 #4
+	public static final int[] MIXOLYDIAN= new int[] { 2,4,5,7,9,10 }; // G7
+	public static final int[] AEOLIAN 	= new int[] { 2,3,5,7,8,10 }; // Amin7
+	public static final int[] LOCRIAN 	= new int[] { 1,3,5,6,8,10 }; // B¿
 }
